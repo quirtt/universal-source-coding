@@ -13,8 +13,9 @@
 #Debugging files
 debug.*
 
-# Results and Media
+# Results and Virtual Environments
 results/
+env/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
