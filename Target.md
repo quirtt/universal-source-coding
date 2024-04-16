@@ -119,5 +119,3 @@ The only issue is that this algorithm is offline, we must have a finite set of a
   - We are restricting our universe to only those distributions. It would perform really well within that distribution but would perform really bad once we come out of the universe.
 
   - How to get all those possible class of p.m.fs required to generate the universe. My proposition is to use `corpus nltk` which contains some pretty famous literature in `.txt` format. Though I need some more suggestions.
-
->Try to put your suggestions in form of issues.
