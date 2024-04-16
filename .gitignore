@@ -13,6 +13,7 @@
 
 #Debugging files
 debug.*
+Target.*
 
 # Results and Virtual Environments
 results/
@@ -288,7 +289,7 @@ FakesAssemblies/
 
 # GhostDoc plugin setting file
 *.GhostDoc.xml
-Target.md
+
 
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
