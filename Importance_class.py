@@ -67,8 +67,6 @@ class Importance_calculations:
         importance = self.normalize_dict_values(unnorm)
         return importance
 
-class Encoding:
-    pass
 
 #testing puposes only
 #file = open('no_rel/data.txt', 'r')
