@@ -1,3 +1,6 @@
+import sys
+from collections import defaultdict
+
 class Importance_calculations:
 
     def __init__(self, file):
@@ -11,62 +14,43 @@ class Importance_calculations:
         for c in [chr(i) for i in k]:
             str = str.replace(c, '')
         return str
-    #successfully filtered the sample
-    def code_book(self):
+
+    def importance_dictionary(self):
         dictionary = []
-        accum = ''
-        for i in self.data:
-            pat = accum + i
-            if pat in dictionary:
-                accum = pat
+        counter = defaultdict(int)
+        phrase = ""
+        for char in self.data:
+            new_phrase = phrase + char
+            
+            if new_phrase in dictionary:
+                phrase = new_phrase
             else:
-                dictionary.append(pat)
-                accum = ''
-        return dictionary
-    #we've built the iterative dictionary
-    def occurances(self):
-        dictionary = self.code_book()
-        encode = {}
-        for i in dictionary:
-            encode[i] = self.data.count(i)
-        return encode 
-    #we've built the encode hashmap
+                counter[phrase] += 1
+                dictionary.append(new_phrase)
+                # phrase = char
+                phrase = ''
+        print('importance dictionary:', dictionary)
+        return counter, dictionary
+
     def rank(self):
-        occur = self.occurances()
-        code_book = self.code_book()
-        code_book.sort(key=lambda str: len(str)*occur[str], reverse=True)
-        return code_book
-    #implemented the rank array
+        counter, dictionary = self.importance_dictionary()
+        dictionary.sort(key=lambda str: len(str)*counter[str], reverse=True)
+        return dictionary, counter
+    
     def importance_sorting(self):
-        ranked = self.rank()
-        occurances = self.occurances()
-
-        for i in range(len(ranked)-1):
-            x = ranked[i]
-            idx_sub = i + 1
-            while idx_sub< len(ranked):
-                z = ranked[idx_sub]
-                if z in x:
-                    occurances[z] = occurances[z] - occurances[x]*(x.count(z))
-                idx_sub += 1 
-            ranked.sort(key=lambda str: len(str)*occurances[str], reverse=True)
-        return ranked, occurances
-    #final ranking is done!
-    def normalize_dict_values(self, dictionary):
-        min_value = abs(min(dictionary.values()))
-        for i in dictionary.keys():
-            dictionary[i] += min_value
-        normalizer = sum(dictionary.values()) 
-        normalized_dict = {}
-        for key, value in dictionary.items():
-            normalized_value = value / normalizer
-            normalized_dict[key] = round(normalized_value, 4)
-        return normalized_dict
-    def importance_registry(self):
-        _,unnorm = self.importance_sorting()
-        importance = self.normalize_dict_values(unnorm)
-        return importance
-
+        ranked_dict, counter = self.rank()
+        print(counter)
+        return ranked_dict, counter
+    
+    def encode_rank(self):
+        ranked_dict, _ = self.rank()
+        ranking_levels = {}
+        rank = 1
+        for e in ranked_dict:
+            ranking_levels[e] = rank
+            rank += 1
+        print('ranking_levels:', ranking_levels)
+        return ranking_levels
 
 #testing puposes only
 #file = open('no_rel/data.txt', 'r')
