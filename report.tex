@@ -1,0 +1,585 @@
+\documentclass[scrartcl]{article}
+\usepackage[sexy]{evan}
+% \usepackage{geometry}
+% \geometry{total={170mm,250mm}, top=25mm}
+
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\date{}
+\author{}
+\usepackage[utf8]{inputenc}
+\usepackage{fancyhdr}
+\usepackage{algorithm}
+\usepackage{listings}
+\usepackage{algpseudocode}
+% Default fixed font does not support bold face
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{8} % for bold
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{8}  % for normal
+
+% Custom colors
+\usepackage{color}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+\usepackage{listings}
+
+% Python style for highlighting
+\newcommand\pythonstyle{\lstset{
+language=Python,
+basicstyle=\ttm,
+morekeywords={self},              % Add keywords here
+keywordstyle=\ttb\color{deepblue},
+emph={MyClass,__init__},          % Custom highlighting
+emphstyle=\ttb\color{deepred},    % Custom highlighting style
+stringstyle=\color{deepgreen},
+frame=tb,                         % Any extra options here
+showstringspaces=false
+}}
+
+
+% Python environment
+\lstnewenvironment{python}[1][]
+{
+\pythonstyle
+\lstset{#1}
+}
+{}
+\title{Universal Source Coding: Explorations in Information Theory and Encoding Schemes}
+\usepackage[toc,page]{appendix}
+\DeclareMathOperator*{\Index}{\textbf{Index}}
+\fancyhf{}
+\fancyhead[L]{Bachelors of Statistics (Hons.), 2023-26}
+\fancyfoot[C]{\thepage}
+\setlength{\headsep}{35pt}
+\renewcommand{\footrule}{
+        \hrule width\headwidth height\headrulewidth depth\headrulewidth
+}
+
+\usepackage{enumitem}
+
+\newcommand{\definition}[2]{%
+    \begin{minipage}{\textwidth}
+        \textbf{#1:} #2
+    \end{minipage}
+    % \begin{itemize}[label=\textbullet, leftmargin=*]
+}
+\begin{document}
+\input{title/title.tex}
+\pagestyle{fancy}
+\maketitle
+\author{}
+\date{}
+\begin{abstract}
+    Morse code sends English characters using dots and dashes. The letter E is represented by a single dot. This is reasonable because E happens to the most frequently occuring letter in normal usage. So assigning the shortest code to it makes sense from the viewpoint of length optimisation. 
+    The intuitive idea of ``more frequent inputs should be mapped to shorter outputs" gets rigorised in the so-called Huffman encoding scheme. It turns out to be the optimal encoding scheme given you know the source distribution. This project tries to answer the natural extension to that question: to come up with an encoding scheme that guarantees a minimum performace against all input probability distributions, \textit{algorithmically.}
+\end{abstract}
+\section{Introduction}
+The broad setup is the following: there's data coming in from some source. If the source distribution is known, then Huffman Encoding gives the optimal encoding scheme. This project tries to figure out a good encoding scheme (in multiple contexts!) that guarantees performance against all source distributions!
+There are many ways to go about this project, and we thought it would be a very big missed opportunity if we just explore one of them, so we decided to pursue our creativity and explore the multiple perspectives we found out!
+
+Himadri Mandal and Abhik Rana have improved the \textbf{Lempel-Ziv-Welch} algorithm in a particular context, Siddhartha Bhattacharya has worked on a \textbf{Huffman Encoding focused approach} and Ayan Ghosh has worked on something he calls \textbf{Method of Types}. 
+
+There were a few other approaches that we also worked on but those weren't particularly promising. First, we would like to go through the transition of ideas we went through. 
+
+\section {Initial Ponderings}
+\begin{context}
+Data comes in character by character. We don't know the source distribution of the data. Therefore, we try to estimate the source distribution and use the many techniques available thereon.
+\end{context}
+
+If you know the source distribution already, then you're done. What we can do is try to define a ``universe" of distributions and figure out a good ``center" of this universe. By universe I mean a probability simplex: 
+
+\begin{proposition*}
+    Let $\{p_1, p_2, \cdots, p_m\}$ be a set of pmfs. Define the universe of probabilities to be
+    $$\mathcal{U} = \Bigg\{\alpha_1 \cdot p_1 + \cdots + \alpha_m \cdot p_m \Bigg| \alpha_1 + \cdots + \alpha_m = 1, 0 \leq \alpha_i \leq 1\Bigg\}$$
+\end{proposition*}
+\begin{proposition*}
+    Let $\chi_d(P,Q)$ be a measure of ``difference'' between two probability distributions $P, Q$. Let $\mathcal{U}$ be a universe of probabilities. Define the two following centers of universe: $\mathcal{P}_{1}$ and $\mathcal{P}_{2}$
+    $$\mathcal{P}_1 = \underset{P}{\arg \min} \underset{Q \ \sim \ \mathcal{U}}{\Bbb{E}}[\chi_d(P,Q)]$$
+    $$\mathcal{P}_2 = \underset{P \ \sim \ U}{\inf} \underset{Q \ \sim \ U}{\sup} \ \chi_d(P,Q)$$
+    $\mathcal{P}_1, \mathcal{P}_2$ give best average performace and best worst performance, respectively.
+\end{proposition*}
+
+The measure of difference between two probability distribution we tried to work with was $\chi_d(P,Q) = \operatorname{D_{KL}}(Q || P)$.
+The idea is the following:
+\begin{itemize}
+    \item Figure out a good way to fix the universe $\mathcal{U}$. 
+    \item Find the centers $\mathcal{P}_!$, $\mathcal{P}_2$ using gradient descemt or such.
+    \item Obtain encoding schemes $H_1, H_2$ accordingly. Choose as need be. 
+\end{itemize}
+We believe there is promise in this idea, and should be explored further. However, we figured out new perspectives to look at this problem and so didn't devote any more time into this.
+
+\section{Bubbly Lempel-Ziv-Welch}
+\subsection{Theory}
+We improve the \textbf{Lempel-Ziv-Welch} algorithm. We named this ``\text{Bubbly}'' because the initial versions of our work somehow represented the bubble sort. 
+
+\begin{context}
+    $\textbf{Lossless File Compression}$. We have a file $F$ with letters $\text{(a-z)}$. We compress the file $F$ and create $E(F)$ in a way that if the $\textbf{Decoder}$ has the knowledge of $E(F)$ and the encoding scheme $E(\cdot)$ then it can rediscover $F$ with no loss. Ofcourse we care about time and space complexities. 
+\end{context}
+\begin{proposition*}[Lempel-Ziv-Welch]
+    Define dictionary $D$ with all characters in the input alphabet and their encodings. Define a running string variable $\operatorname{Pattern}$, and iteratively add the next character to it. If the resulting string is already in $D$, continue reading characters until you find a string that is \textit{not} in the dictionary $D$. Add it to $D$ with its encoding. Then, encode $\operatorname{Pattern}$ as $D[\operatorname{Pattern}[0:-1]] + \operatorname{Pattern}[-1]$. Continue.
+\end{proposition*}
+\begin{example*}
+    \text{Text = AABABBABBAABABBA}
+    \newline
+    \text{Dictionary: A - 1, AB - 2, ABB - 3, ABBA - 4, ABA - 5, B - 6, BA - 7}
+    \newline
+    \text{Encoded = A1B2B3A2A\#B6A}
+
+\end{example*}
+Canonically, the encodings of $D$ follow a monotonic ordering in the time axis. This is to prevent what we call ``ambiguities'' as we see.
+To improve this algorithm: we attack the way encodings are determined. Clearly, in the attempt to make the algorithm simple and the decoding direct $\textbf{LZW}$ makes no effort in determining optimal encodings.
+\newpage
+
+To do this, we need two things: 
+\begin{itemize}
+    \item For any permutation $\xi(D)$ of the encodings, we should be able to perform the decoding scheme $\textit{without}$ a lookup table!
+    \item Optimize $\xi(D)$ for length of text. 
+\end{itemize}
+The second part is easier to ensure, so let's do that first.
+
+\begin{proposition*}[\textbf{Bubbly LZW: Permutation optimization}]
+    Obtain the normal $\textbf{LZW}$ dictionary $D$, and find the number of times each encoding is obtained, for a phrase $X$
+    call this $\operatorname{Counter}(X)$. Sort $D$ in decreasing order according to the key $f(v) = \operatorname{len}(v)\cdot\operatorname{Counter}(v)$. \newline
+
+    Define $P_D = \operatorname{SortedD}^{-1}$ such that $\operatorname{SortedD}[P_D(x)] = x$. $P_D$ is the optimized permutation.
+\end{proposition*}
+
+Okay, let's try to figure out the first obstacle now. 
+\begin{definition*}[Phrase]
+    Phrases are of three types:
+    \begin{enumerate}
+        \item Parent: $\text{(}n\text{X)}$, where $n$ is an encoding whose definition can not be realized given the text before this phrase and $\text{X}$ is some character.
+        \item Child: $\text{(}n\text{X)}$, where $n$ is an encoding whose definition can be realized using the text before this phrase and $\text{X}$ is some character.
+        \item New: $\text{(\#X)}$, where $\text{X}$ is some character.
+    \end{enumerate}
+\end{definition*}
+\begin{proposition*}[Phrase Decomposition]
+    Let $\xi(D)$ be a permutation of the encoding. Using this permutation of the encoding, encode the text. Obtain $E_{\xi}(\text{Data})$. Define 
+    $\textbf{Phrase Decomposition}$ of $E_{\xi}(\text{Data})$ to be a decomposition of the encoded text into phrases.
+\end{proposition*}
+\begin{example*}
+    \text{Text = \#a3b1b2a1a\#b4a}
+    \newline
+    \text{Phrase Decomposition = (\#a)(3b)(1b)(2a)(1a)(\#b)(4a)}
+\end{example*}
+As the decoder reads through the encoded, there could arise what we call "ambiguities". An example of such a thing is:
+\begin{example*}[Ambiguity]
+    \text{Phrase Decomposition = (\#a)(3b)(1b)(2a)(1a)(\#b)(4a)}
+    \newline
+    Here ``(1a)'' is an ambiguous phrase whose meaning cannot be derived by the decoder using the phrases before it. 
+\end{example*}
+When we obtain ambiguities it is necessary for us to define it out for the decoder to then use it. Here is a characterisation of ambiguities:
+\begin{theorem*}[Characterisation of The First Ambiguity]
+    A phrase $P$ is the first ambiguity $\iff$ the phrase $P$ is the last parent phrase before the first child phrase (OR) the last parent phrase before the first new phrase. 
+\end{theorem*}
+This leads us to the algorithm of finding out the ambiguities and then solving them:
+\algdef{SE}[SUBALG]{Indent}{EndIndent}{}{\algorithmicend\ }%
+\algtext*{Indent}
+\algtext*{EndIndent}
+\begin{algorithm}
+    \caption{ Recursively solve ambiguities. }\label{riffle}
+    \begin{algorithmic}[1]
+    \Procedure{SolveAmbiguity}{Encoded}
+        \While{IsAmbiguity: \textbf{True}}
+        \State Find the \textbf{first occurence} of one of the two:
+        \Indent
+            \State \textbf{(parent)(child)}
+            \State \textbf{(parent)(new)}
+        \EndIndent
+
+        \State Perform the \textit{definition} of the \textbf{(parent)}
+        \State Mark the next phrase a parent, and continue.
+        \EndWhile
+    \EndProcedure
+    \end{algorithmic}
+\end{algorithm}
+\begin{proposition*}[Defining a Parent]
+    By defining a parent phrase $P$, we mean giving the decoder some information that can then be used to determine the encoding 
+    of $P$ unambiguously. Here we used the most naive idea: we defined a parent phrase $P$ by attaching its definition to it.
+\end{proposition*}
+\newpage
+Albeit a bit complicated, here's the decoder algorithm:
+\begin{python}
+    class Decoding:
+        def __init__(self, unambiguous):
+            self.code = unambiguous 
+        
+        def nearest_closing_bracket(self, idx):
+            j = 1
+            while self.code[idx+j] != ')':
+                j+=1
+            return idx+j, self.code[idx+1:idx+j]
+        
+        def farthest_ending_digit(self, idx):
+            j = 0
+            while self.code[idx+j].isnumeric():
+                j += 1
+            return idx+j-1, self.code[idx:idx+j]
+        
+        def return_key(self, dictionary, idx):
+            return list(dictionary.keys())[list(dictionary.values()).index(idx)]
+        
+        def decoder(self):
+        dictionary = {}
+            decode = ''
+            i = 0
+            while i < len(self.code):
+                if self.code[i] == '#':
+                    if self.code[i+2] == '(': 
+                        ending_bracket, inside = self.nearest_closing_bracket(i+2)
+                        dictionary[self.code[i+1]] = int(inside)
+                        i = 1+ending_bracket
+                        decode += self.code[i+1]
+                    else:
+                        ending_location, address = self.farthest_ending_digit(i+2)
+                        dictionary[self.code[i+1]] = int(address)
+                        i = 1 + ending_location
+                        decode += self.code[i+1]
+                else:
+                    j, prev = self.farthest_ending_digit(i)
+                    if self.code[j+2] == '(':
+                        ending_bracket, inside = self.nearest_closing_bracket(j+2)
+                        dictionary[self.return_key(dictionary, int(prev))+self.code[j+1]] = int(inside)
+                        decode += self.return_key(dictionary, int(prev))+self.code[j+1]
+                        i = 1+ending_bracket
+                    else:
+                        ending_location, address = self.farthest_ending_digit(j+2)
+                        dictionary[self.return_key(dictionary, int(prev))+self.code[j+1]] = int(address)
+                        decode += self.return_key(dictionary, int(prev))+self.code[j+1]
+                        i = 1 + ending_location
+            print(dictionary)
+            return decode    
+\end{python}
+\subsection{Results and Observations}
+
+\section{Huffman Must Encode}
+\subsection{Huffman Encoding}
+Formalized description 
+
+\textbf{Input.}
+Alphabet $A=\left(a_1, a_2, \ldots, a_n\right)$, which is the symbol alphabet of size $n$.
+Tuple $W=\left(w_1, w_2, \ldots, w_n\right)$, which is the tuple of the (positive) symbol weights (usually proportional to probabilities), i.e. $w_i=\operatorname{weight}\left(a_i\right), i \in\{1,2, \ldots, n\}$.
+
+\textbf{Output.}
+Code $C(W)=\left(c_1, c_2, \ldots, c_n\right)$, which is the tuple of (binary) codewords, where $c_i$ is the codeword for $a_i, i \in\{1,2, \ldots, n\}$
+
+\textbf{Goal.}
+Let $L(C(W))=\sum_{i=1}^n w_i$ length $\left(c_i\right)$ be the weighted path length of code $C$. Condition: $L(C(W)) \leq L(T(W))$ for any code $T(W)$.
+
+\subsection{Proof of Optimality}
+Recall that the problem is given frequencies $f_1, \ldots, f_n$ to find the optimal prefix-free code that minimizes
+$$
+\sum_i^n f_i \cdot \text { (length of encoding of the } i \text {-th symbol). }
+$$
+
+This is the same as finding the full binary tree with $n$ leaves, one per symbol in $1, \ldots, n$, that minimizes
+$$
+\sum_{i=1}^n f_i \cdot(\text { depth of leaf of the } i \text {-th symbol) }
+$$
+
+Recall that we showed in class the following key claim.
+Claim 1 (Huffman's Claim). There's an optimal tree where the two smallest frequency symbols mark siblings (which are at the deepest level in the tree).
+
+We proved this via an exchange argument. Then, we went on to prove that Huffman's coding is optimal by induction. We repeat the argument in this note.
+
+Claim 2. Huffman's coding gives an optimal cost prefix-tree tree.
+Proof. The proof is by induction on $n$, the number of symbols. The base case $n=2$ is trivial since there's only one full binary tree with 2 leaves.
+
+Inductive Step: We will assume the claim to be true for any sequence of $n-1$ frequencies and prove that it holds for any $n$ frequencies. Let $f_1, \ldots, f_n$ be any $n$ frequencies. Assume without loss of generality that $f_1 \leq f_2 \leq \ldots \leq f_n$ (by relabeling). By Claim 1, there's an optimal tree $T$ for which the leaves marked with 1 and 2 are siblings. Let's denote the tree that Huffman strategy gives by $H$. Note that we are not claiming that $T=H$ but rather that $T$ and $H$ have the same cost.
+
+We will now remove both leaves marked by 1 and 2 from $T$, making their father a new leaf with frequency $f_1+f_2$. This gives us a new binary tree $T^{\prime}$ on $n-1$ leaves with frequencies $f_1+f_2, f_3, f_4, \ldots, f_n$. We do the same for the Huffman tree giving us a tree $H^{\prime}$ on $n-1$ leaves with frequencies $f_1+f_2, f_3, f_4, \ldots, f_n$. Note that $H^{\prime}$ is exactly the Huffman tree on frequencies $f_1+f_2, f_3, f_4, \ldots, f_n$ by definition of Huffman's strategy. By the induction hypothesis,
+$$
+\operatorname{cost}\left(H^{\prime}\right)=\operatorname{cost}\left(T^{\prime}\right) .
+$$
+
+Observe further that
+$$
+\operatorname{cost}\left(T^{\prime}\right)=\operatorname{cost}(T)-\left(f_1+f_2\right)
+$$
+since to get $T^{\prime}$ from $T$ we replaced two nodes with frequencies $f_1$ and $f_2$ at some depth $d$ with one node with frequency $f_1+f_2$ at depth $d-1$. This lowers the cast by $f_1+f_2$. Similarly,
+$$
+\operatorname{cost}\left(H^{\prime}\right)=\operatorname{cost}(H)-\left(f_1+f_2\right) .
+$$
+
+Combining the three equations together we have that
+$$
+\operatorname{cost}(H)=\operatorname{cost}\left(H^{\prime}\right)+f_1+f_2=\operatorname{cost}\left(T^{\prime}\right)+f_1+f_2=\operatorname{cost}(T) .
+$$
+
+\subsection{Variant-Adaptive Huffman Coding}
+Motivating the Variant of Adaptive Huffman Coding schema 
+In consideration of a variable character distribution, we engage with data processing tasks wherein data arrives in sequential chunks. Our objective is to encode each incoming chunk efficiently while simultaneously maintaining a dictionary structure to facilitate straightforward decoding operations. This process is fundamental for tasks such as data compression, where the adaptability of encoding schemes to fluctuating character frequencies is paramount.
+
+To achieve this, we implement an Adaptive Huffman coding algorithm. This algorithm dynamically adjusts its encoding tree structure as new symbols are encountered, ensuring adaptability to evolving character distributions. The essence of our approach lies in the concurrent encoding of incoming data chunks and the maintenance of a dictionary that correlates encoded symbols to their respective characters. This dictionary plays a crucial role in the decoding process, enabling the reconstruction of the original data from its encoded representation.
+
+Formally, our Adaptive Huffman coding implementation comprises the following components:
+
+1. \textbf{Data Encoding}:
+   - As each chunk of data arrives, we encode it using the Adaptive Huffman algorithm. This involves traversing the encoding tree to generate binary representations of the input symbols.
+
+2. \textbf{Dictionary Maintenance}:
+   - Simultaneously, we update and maintain a dictionary that maps each symbol to its corresponding binary code. This dictionary serves as a reference for decoding operations and evolves dynamically alongside the encoding process.
+
+3. \textbf{Dynamic Tree Adjustment}:
+   - The Adaptive Huffman algorithm dynamically adjusts the encoding tree structure based on the frequency of encountered symbols. This adaptability ensures optimal encoding efficiency, with more frequently occurring symbols assigned shorter binary codes.
+
+4. \textbf{Decoding Process}:
+   - To decode encoded data, we utilize the maintained dictionary to efficiently map binary codes back to their original symbols. The dynamic nature of the encoding tree ensures that decoding operations remain efficient and accurate across varying character distributions.
+
+By formalizing these components, we establish a robust framework for encoding and decoding sequential data chunks while accommodating diverse character distributions. This approach ensures efficient data compression and facilitates seamless communication and storage of information in real-world applications.
+\subsection{Coding it}
+\subsubsection{Charecter counter}
+Here is the code which takes in continuous data from the user 
+\begin{python}
+#File name : number_of_char_counter.py
+import numpy as np
+
+def count_ascii_characters(page_content):
+    # Initialize a list to store the counts of ASCII characters
+    ascii_counts = [0] * 128  # Initialize with zeros for ASCII characters 0 to 127
+
+    # Iterate over each character in the page content
+    for char in page_content:
+        # Check if the character is an ASCII character
+        ascii_val = ord(char)
+        if ascii_val < 128:
+            # Increment the count for the ASCII character
+            ascii_counts[ascii_val] += 1
+
+    return ascii_counts
+
+def create_ascii_frequency_matrix(book_file):
+    ascii_frequency_matrix = []
+
+    # Open the book file and read its contents page by page
+    with open('C:\\Users\\inoxb\\Downloads\\input.txt', 'r', encoding='utf-8') as file:
+        for page_content in file:
+            # Count the ASCII characters in the page
+            page_ascii_counts = count_ascii_characters(page_content)
+
+            # Append the ASCII frequency counts of the page to the matrix
+            ascii_frequency_matrix.append(page_ascii_counts)
+
+    # Convert the list of lists to a numpy array (matrix)
+    ascii_frequency_matrix = np.array(ascii_frequency_matrix)
+
+    return ascii_frequency_matrix
+
+# Example usage: Replace 'book.txt' with the path to your book file
+book_file_path = 'C:\\Users\\inoxb\\Downloads\\input.txt'
+ascii_frequency_matrix = create_ascii_frequency_matrix(book_file_path)
+
+# Print the ASCII frequency matrix
+print("ASCII Frequency Matrix:")
+print(ascii_frequency_matrix)
+\end{python}
+\subsubsection{Regression!}
+Why regression you may ask!
+In traditional static Huffman coding, the probability weights of the Huffman encoding are directly proportional to the probabilities of the symbols in the input stream. This means that symbols with higher probabilities are assigned shorter codewords, leading to efficient compression.
+
+However, there are scenarios where the probability weights of the Huffman encoding may not be directly proportional to the probabilities of the symbols. This typically occurs in adaptive Huffman coding, where the encoding tree is updated dynamically as symbols are encountered. Here are a few situations where this can happen:
+
+1. \textbf{Initial Encoding}: In adaptive Huffman coding, the encoding tree starts with a predefined structure, often containing only an escape symbol. During the initial encoding phase, when symbols are encountered for the first time, they are added to the tree without any regard to their probabilities. This means that initially, the probability weights of the codewords may not be proportional to the probabilities of the symbols.
+
+2. \textbf{Dynamic Updates}: As symbols are encountered and added to the encoding tree, the tree's structure changes dynamically. Symbols with higher frequencies move closer to the root of the tree, resulting in shorter codewords. However, this process is not instantaneous and requires multiple occurrences of a symbol to affect its position in the tree. Therefore, there may be periods during which the probability weights of the codewords do not precisely reflect the current probabilities of the symbols.
+
+3. \textbf{Tree Balancing}: In adaptive Huffman coding, the encoding tree may become unbalanced due to long sequences of identical symbols or other factors. To maintain efficiency, the tree may need to be rebalanced or reset periodically. During these operations, the probability weights of the codewords may temporarily deviate from the actual probabilities of the symbols.
+
+4. \textbf{Escape Mechanism}: Adaptive Huffman coding often includes an escape mechanism to handle unknown symbols or to reset the encoding tree. This escape symbol may have a fixed probability weight or may be assigned dynamically based on the current state of the encoding tree. In either case, the probability weight of the escape symbol may not correspond directly to the probability of encountering unknown symbols in the input stream.
+
+In summary, in adaptive Huffman coding, the probability weights of the Huffman encoding may not always be strictly proportional to the probabilities of the symbols due to the dynamic nature of the encoding tree and the need for adaptive updates and balancing. However, over time and with sufficient data, the encoding tends to converge to an efficient representation that closely approximates the true symbol probabilities.
+
+We write the regression problem as follows
+$$\underset{w\in \mathcal{S}}{\text{min}} ||y-Xw||^2_{2}+\lambda_{1}||w||_{1}+\lambda_{2}||w||^{2}_{2}$$ with the given constraints \(\Sigma_{i=1}^{n} w_{i}=1\) with \(w_{i}\geq0 \forall i \in {1,\cdots,n}\)
+
+Here \(y= [y_{1} , y_{2} , \cdots , y_{n}]'\) is a \(n\times 1\) vector of the total number of characters in \(X=(x_{i,j})_{n \times 128}\) is the \(n\times 128\) matrix of returns on the 128 is the number of ascii characters and n chunks of code here \(w=[w_{1} , w_{2} , \cdots , w_{n}]'\) is a \(p \times 1\) vector of weights to be determined to for minimizing the error.\(x_{i,j}\) represents the number of occurences of the \(j^{\text{th}}\) ascii character in the \(i^{\text{th}}\) row
+\textbf{Exponential Gradient Descent}
+We apply Exponential Gradient Descent to solve the regression problem which is the following
+We assume the decision space to be the following \(S\) is a d-dimensional simplex that is 
+$$S=\left\{ w | w_{i} \geq 0 \text{ and }  ||w||_{1}=1 \right\}$$
+In exponentiated gradient descent at time \(t=1\) we choose the central point of the simplex namely \(w_{i,d}=\frac{1}{d}\) then we update in the following manner:
+$$\forall i \in \left [ d \right ],w_{t+1,i}=\frac{w_{t,i}\text{exp}\left\{-\eta \left[ \nabla c_{t} \left(w_{t} \right) \right]_{i}\right\}}{Z_{t}}$$ where 
+$$Z_{t}=\sum_{i} w_{t,i} \left[ \nabla c_{t}\left(w_{t}\right)\right]_{i}$$ 
+
+Here \(\left [ \dot \right]_{i}\) denotes the ith component of the vector.The division by \(\text{Z}_{t}\) normalizes so that \(w_{t+1}\in S\) that is \(||w_{t+1}||_{1}=1\) 
+\begin{algorithm}
+    \caption{Exponential Gradient descent}
+    \begin{algorithmic}[1]
+    \Require {\text{convex} $f:\Delta_{n} \to \mathbb{R}$}
+    \Ensure {: $\eta \geq 0 ,T>0$}
+    \State Set $p^{0}=\frac{1}{n}\mathrm{1}$ (The uniform Distribution) $\in \Delta_{n}$
+    \For{$t=0:T-1$}{
+        \newline
+        $g^{t} := \nabla f(p^{t})$
+        \newline
+        $w^{t+1} := p_{i}^{t+1}e^{-\eta g_{i}^{t}}$
+        \newline
+        $p_{i}^{t+1}:=\frac{w_{i}^{t+1}}{||w_^{t+1}||}$
+    }
+    \newline
+    \State \Return $\bar{p}=\frac{1}{T} \sum_{t=0}^{T-1}p^t$
+    \end{algorithmic}
+\end{algorithm}
+The file which implements the above is named 'egd_for_stat_proj_v1.py'
+\subsubsection{Huffman Encoding Code}
+\begin{python}
+#Name Of the file: huffman_coding_v1.py
+import heapq
+from collections import defaultdict
+
+# Import w_optimal from egd_for_stat_proj_v1.py
+from egd_for_stat_proj_v1 import w_optimal
+
+# Read the text from the file
+file_path = 'C:\\Users\\inoxb\\Downloads\\input.txt'
+with open(file_path, 'r', encoding='utf-8') as file:
+    text = file.read()
+
+# Define the Huffman coding function
+def huffman_coding(text, weights):
+    # Create a dictionary to store the frequency of each character
+    frequency = defaultdict(int)
+    for char in text:
+        frequency[char] += 1
+
+    # Build the Huffman tree
+    heap = [[weight, [char, ""]] for char, weight in frequency.items()]
+    heapq.heapify(heap)
+    while len(heap) > 1:
+        lo = heapq.heappop(heap)
+        hi = heapq.heappop(heap)
+        for pair in lo[1:]:
+            pair[1] = '0' + pair[1]
+        for pair in hi[1:]:
+            pair[1] = '1' + pair[1]
+        heapq.heappush(heap, [lo[0] + hi[0]] + lo[1:] + hi[1:])
+
+    # Create a dictionary to store the Huffman codes
+    huffman_codes = {}
+    for char, code in heap[0][1:]:
+        huffman_codes[char] = code
+
+    # Encode the text using Huffman codes
+    encoded_text = ''.join(huffman_codes[char] for char in text)
+
+    return encoded_text, huffman_codes
+
+# Apply Huffman coding with the weights from w_optimal
+encoded_text, huffman_codes = huffman_coding(text, w_optimal)
+
+# Print the encoded text
+print("Encoded text:")
+print(encoded_text)
+
+# Print the mapping of ASCII characters to binary strings
+print("\nCharacter - Binary String Mapping:")
+for char, code in huffman_codes.items():
+print(f"'{char}' - {code}")
+\end{python}
+\subsubsection{Huffman Decoding}
+\begin{python}
+#Filename: huffman_decoder_v1.py
+from huffman_coding_v1 import encoded_text
+from huffman_coding_v1 import huffman_codes 
+def huffman_decoder(encoded_texting, huffman_mapping):
+    decoded_text = ""
+    current_code = ""
+    
+    # Invert the huffman_mapping to map codes to characters
+    inverted_mapping = {code: char for char, code in huffman_mapping.items()}
+    
+    for bit in encoded_texting:
+        current_code += bit
+        if current_code in inverted_mapping:
+            decoded_text += inverted_mapping[current_code]
+            current_code = ""
+    
+    return decoded_text
+
+# Example usage:
+# encoded_text is the Huffman encoded binary string
+# huffman_mapping is the mapping of characters to their Huffman codes
+# Replace these with your actual encoded text and mapping
+encoded_texting = encoded_text
+huffman_mapping = huffman_codes
+
+decoded_text = huffman_decoder(encoded_text, huffman_mapping)
+print("Decoded Text:", decoded_text)
+\end{python}
+\subsection{Combining the Above}
+To implement the following algorithm effectively, it's crucial to understand its key components and the sequential flow of operations. Here's a formal description of the algorithm:
+
+1.\textbf{Input Data Processing}:
+   - As a user continuously inputs data into a file, the module `number of char counter.py` processes each chunk of data.
+   - Upon receiving a chunk of data, the `number of char counter.py` module runs the `egd for stat proj v1.py` file. This process computes the optimal weights based on the received data.
+
+2. \textbf{Huffman Encoding}:
+   - Using the obtained optimal weights, the module `huffman encoder.py` encodes the data and generates a dictionary mapping each character to its corresponding binary string.
+
+3. \textbf{Dictionary Concatenation}:
+   - When a user writes another piece of text, the same process is repeated to obtain optimal weights and create a corresponding dictionary.
+   - If the ordering of weights remains the same, indicating no significant changes in the character frequencies, the new dictionary is concatenated with the previous one.
+   - If the ordering of weights changes, suggesting a shift in character frequencies, the differences in the encoding scheme are noted and incorporated into the dictionary.
+
+   4. \textbf{Continuous Operation}:
+      - This process continues iteratively as the user inputs more data. At each step, the algorithm adapts to changes in the data and updates the encoding scheme accordingly.
+   
+   5. \textbf{Decoding}:
+      - During decoding:
+        - For the first step, the data is decoded directly using the original dictionary.
+        - For subsequent steps, changes in the dictionary made during encoding are noted, and decoding is performed accordingly to account for these changes.
+   
+   This algorithm allows for adaptive encoding and decoding, where the encoding scheme adjusts dynamically based on the observed data patterns. By continuously updating the encoding dictionary, the algorithm efficiently adapts to changes in the input data distribution while maintaining the ability to decode previous and current data streams accurately.
+   
+   First we try and formalize how large should be a chunk of data.Suppose a monkey is randomly hitting keys on a typewriter with all the 128 ascii characters.The expected number of hits required to hit all the characters is 128H_{128} where H_{128} denotes the 128th harmonic number this fact comes from the Expectation of coupon collecting problem
+   
+   We now formally show how the dictionary keeps on getting updated so at every step we dont have to save the dictionary and the process can be described as follows:
+   
+   1. \textbf{Initialization}:
+      - Given an initial encoding scheme \( E_1 \), weight vector \( W_1 \), and dictionary \( D_1 \), encode the first chunk of text using \( E_1 \) and maintain \( D_1 \).
+   
+   2. \textbf{Updating Encoding Scheme}:
+      - Upon adding a new chunk of text with weight vector \( W_2 \), construct a new dictionary \( D_2 \) corresponding to the new text.
+      - Check the monotonicity of \( W_2 \) and \( W_1 + W_2 \):
+        - If the monotonicity of \( W_2 \) matches \( W_1 + W_2 \), continue using \( E_1 \).
+        - If the monotonicity of \( W_2 \) differs from \( W_1 + W_2 \):
+          - Determine the smallest number of permutations required for \( W_2 \) to achieve the same monotonicity as \( W_1 + W_2 \).
+          - Update \( D_1 \) accordingly by applying the permutations, ensuring that the changes preserve existing encodings as much as possible.
+          - Use the modified dictionary \( D_1 \) to encode the new chunk of text with \( E_1 \).
+   
+   3. \textbf{Recursion and Separate Computation}:
+      - Repeat the above process recursively for subsequent chunks of text.
+      - If the set of indexes of non-zero weights of \( W_2 \) is a subset or equal set of indexes of non-zero weights of \( W_1 \):
+        - Check if the monotonicity of \( W_1 + W_2 \) and \( W_2 \) is preserved.
+        - If preserved, continue with \( E_1 \); otherwise, update \( D_1 \) and \( E_1 \) as described above.
+      - If none of the indexes of non-zero weights of \( W_2 \) is a subset or equal set of indexes of non-zero weights of \( W_1 \):
+        - Compute the dictionary \( D_2 \) separately.
+      - If the indexes of non-zero weights of \( W_2 \) have a non-zero intersection with the indexes of non-zero weights of \( W_1 \):
+        - Again, compute the dictionary \( D_2 \) separately.
+   
+   This formal description outlines the procedure for adaptively updating the encoding scheme and dictionary based on changes in the weight vectors of chunks of text. It accounts for scenarios where the monotonicity changes and where the sets of non-zero weights intersect or are disjoint between weight vectors.
+   
+   Now we can recursively keep on storing the dictionary by noting the changes being made so we dont have to collectively store a complete dictionary everytime we add a new chunk of data which will make the decoding a simple recursive process
+   
+   The following summarizes this in the manner of a huffman tree 
+   1. \textbf{Initial Encoding Tree}: 
+      - Adaptive Huffman encoding starts with an initial encoding tree that represents a fixed initial dictionary mapping characters to binary codes. This initial tree is commonly constructed using a predefined method like ASCII or fixed-length codes.
+   
+   2. \textbf{Tree Update on New Symbol Arrival}: 
+      - As new symbols are encountered in the input stream, the encoding tree is updated dynamically. If the new symbol is encountered for the first time, it is added to the encoding tree with a new code. If the symbol has been seen before, the encoding tree is adjusted to maintain the Huffman coding property, typically by swapping nodes to maintain the optimal encoding.
+   
+   3. \textbf{Tree Traversal for Encoding}: 
+      - To encode a symbol, the encoding tree is traversed from the root to the leaf node corresponding to the symbol. The binary code associated with that leaf node is then output as the encoded representation of the symbol.
+   
+   4. \textbf{Dynamic Nature of the Encoding Tree}: 
+      - The encoding tree evolves continuously as new symbols are encountered. This dynamic nature of the tree allows it to adapt to changes in the frequency distribution of symbols in the input stream.
+   
+   5. \textbf{Implicit Dictionary Preservation}: 
+      - Since the encoding tree represents a mapping from symbols to binary codes, the dictionary is implicitly preserved as the tree evolves. Each node in the tree corresponds to a symbol, and the path from the root to a leaf node represents the binary code for that symbol. Therefore, at any given point, the encoding tree encapsulates the current dictionary mapping.
+   
+   6. \textbf{Chunk-Based Encoding}: 
+      - While adaptive Huffman encoding does not explicitly preserve the dictionary at every chunk, it continuously updates the encoding tree based on the symbols encountered in the input stream. Therefore, the encoding scheme adapts to the characteristics of the input data dynamically, ensuring efficient compression.
+   
+   
+\end{document}           
